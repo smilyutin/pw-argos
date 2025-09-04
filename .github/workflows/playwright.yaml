@@ -2,9 +2,9 @@ name: Playwright Tests
 
 on:
   push:
-    branches: ["dev*", "main"]     # run on dev* and main pushes
+    branches: ["dev*", "main"]
   pull_request:
-    branches: ["dev*", "main"]     # PRs targeting dev* or main
+    branches: ["dev*", "main"]
   workflow_dispatch:
 
 permissions:
@@ -19,23 +19,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '16'        # Angular build on Node 16
+          node-version: '16'
           cache: 'npm'
-
       - name: Install Angular deps
         run: |
           set -e
           npm ci --legacy-peer-deps --no-audit --no-fund || \
           npm install --legacy-peer-deps --no-audit --no-fund
-
       - run: npx ng version
-
       - name: Build Angular (production)
         run: npx ng build --configuration production
-
       - uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -45,47 +40,37 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-angular]
     env:
-      # Playwright / test env
       NPM_CONFIG_AUDIT: "false"
       NPM_CONFIG_FUND: "false"
       PW_FORBID_ONLY: "1"
       QA_URL: http://localhost:4200
       QA_EXTERNAL_URL: 'https://www.globalsqa.com/demo-site/draganddrop/#Photo%20Manager'
-
-      # Argos env (safe defaults)
       ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN || '' }}
       ARGOS_BRANCH: ${{ github.ref_name }}
       ARGOS_COMMIT: ${{ github.sha }}
       ARGOS_CI: github-actions
       ARGOS_PARALLEL_TOTAL: "1"
-      ARGOS_PARALLEL_INDEX: "1"     # ← 1-based index (was 0)
-
+      ARGOS_PARALLEL_INDEX: "1"   # 1-based index (required by Argos)
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'        # Playwright requires >=18
+          node-version: '20'
           cache: 'npm'
-
       - name: Install test deps
         run: |
           set -e
           npm ci --legacy-peer-deps --no-audit --no-fund || \
           npm install --legacy-peer-deps --no-audit --no-fund
-
       - name: Defocus tests (remove .only)
         run: node scripts/strip-only.js
-
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
-
       - uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist
 
-      # Derive ARGOS_BASE_BRANCH (PR base branch; else main)
       - name: Set ARGOS_BASE_BRANCH
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -103,7 +88,6 @@ jobs:
           echo "ARGOS_CI=$ARGOS_CI"
           echo "ARGOS_PARALLEL_TOTAL=$ARGOS_PARALLEL_TOTAL ARGOS_PARALLEL_INDEX=$ARGOS_PARALLEL_INDEX"
 
-      # Install Argos tooling leniently to avoid legacy peer-dep conflicts
       - name: Install Argos packages (lenient)
         if: ${{ env.ARGOS_TOKEN != '' }}
         run: |
@@ -118,36 +102,28 @@ jobs:
         if: ${{ env.ARGOS_TOKEN != '' }}
         run: node -e "console.log(require.resolve('@argos-ci/playwright')); console.log('Argos reporter RESOLVED ✅')"
 
-      # Run tests (your code calls argosScreenshot(...) to create ./.argos-screenshots)
       - name: Playwright tests
         env:
           DEBUG: "argos:*"
         run: npx playwright test --reporter=line
 
-      # Ensure 1-based defaults even if matrix/sharding is added later
       - name: Normalize Argos parallel env
         if: ${{ env.ARGOS_TOKEN != '' }}
         run: |
           echo "ARGOS_PARALLEL_TOTAL=${ARGOS_PARALLEL_TOTAL:-1}" >> "$GITHUB_ENV"
           echo "ARGOS_PARALLEL_INDEX=${ARGOS_PARALLEL_INDEX:-1}" >> "$GITHUB_ENV"
 
-      # Upload screenshots to Argos (only when token present and dir exists)
       - name: Upload snapshots to Argos
         if: ${{ env.ARGOS_TOKEN != '' }}
         run: |
           if [ -d ".argos-screenshots" ]; then
             echo "Uploading $(find .argos-screenshots -type f | wc -l) snapshot(s)…"
-            npx @argos-ci/cli upload ./.argos-screenshots \
-              --branch "$ARGOS_BRANCH" \
-              --commit "$ARGOS_COMMIT" \
-              --base-branch "$ARGOS_BASE_BRANCH" \
-              --parallel-total "${ARGOS_PARALLEL_TOTAL:-1}" \
-              --parallel-index "${ARGOS_PARALLEL_INDEX:-1}"
+            # Argos CLI reads branch/commit/base/parallel from env variables
+            npx @argos-ci/cli upload ./.argos-screenshots
           else
             echo "No ./.argos-screenshots directory found — skipping Argos upload."
           fi
 
-      # Upload Playwright HTML report when something fails
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
