@@ -117,10 +117,15 @@ jobs:
         if: ${{ env.ARGOS_TOKEN != '' }}
         run: node -e "console.log(require.resolve('@argos-ci/playwright')); console.log('Argos reporter RESOLVED ✅')"
 
-      # Run tests (your code should call argosScreenshot(...) at interesting points)
-      - name: Playwright tests
+      # Use Argos reporter when token is present; otherwise default reporter
+      - name: Playwright tests (Argos reporter)
+        if: ${{ env.ARGOS_TOKEN != '' }}
         env:
           DEBUG: "argos:*"
+        run: npx playwright test -c playwright.argos.config.ts --reporter=line
+
+      - name: Playwright tests (no Argos)
+        if: ${{ env.ARGOS_TOKEN == '' }}
         run: npx playwright test --reporter=line
 
       # Upload screenshots to Argos (only when token present and dir exists)
@@ -128,6 +133,7 @@ jobs:
         if: ${{ env.ARGOS_TOKEN != '' }}
         run: |
           if [ -d ".argos-screenshots" ]; then
+            echo "Uploading $(find .argos-screenshots -type f | wc -l) snapshot(s)…"
             npx @argos-ci/cli upload ./.argos-screenshots
           else
             echo "No ./.argos-screenshots directory found — skipping Argos upload."
