@@ -1,3 +1,4 @@
+# .github/workflows/playwright.yml
 name: Playwright Tests
 
 on:
@@ -19,25 +20,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '16'           # Angular build on Node 16
+          node-version: '16'
           cache: 'npm'
 
       - name: Install Angular deps
-        shell: bash
         run: |
           set -e
-          if npm ci --legacy-peer-deps --no-audit --no-fund; then
-            echo "✔ npm ci succeeded"
-          else
-            echo "⚠ npm ci failed, falling back to npm install"
-            npm install --legacy-peer-deps --no-audit --no-fund
-          fi
+          npm ci --legacy-peer-deps --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
 
       - run: npx ng version
-
       - name: Build Angular (production)
         run: npx ng build --configuration production
 
@@ -53,12 +46,8 @@ jobs:
       NPM_CONFIG_AUDIT: "false"
       NPM_CONFIG_FUND: "false"
       PW_FORBID_ONLY: "1"
-
-      # ---- App/Test URLs ----------------------------------------------------
       QA_URL: http://localhost:4200
       QA_EXTERNAL_URL: 'https://www.globalsqa.com/demo-site/draganddrop/#Photo%20Manager'
-
-      # ---- Argos config -----------------------------------------------------
       ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN || '' }}
       ARGOS_BRANCH: ${{ github.ref_name }}
       ARGOS_BASE_BRANCH: main
@@ -69,22 +58,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'           # Playwright requires >= 18
+          node-version: '20'
           cache: 'npm'
 
       - name: Install test deps
-        shell: bash
         run: |
           set -e
-          if npm ci --legacy-peer-deps --no-audit --no-fund; then
-            echo "✔ npm ci succeeded"
-          else
-            echo "⚠ npm ci failed, falling back to npm install"
-            npm install --legacy-peer-deps --no-audit --no-fund
-          fi
+          npm ci --legacy-peer-deps --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Defocus tests (remove .only)
         run: node scripts/strip-only.js
@@ -104,13 +86,12 @@ jobs:
           echo "ARGOS_BASE_BRANCH=$ARGOS_BASE_BRANCH"
           echo "ARGOS_COMMIT=$ARGOS_COMMIT"
           echo "ARGOS_CI=$ARGOS_CI"
-          echo "ARGOS_PARALLEL_TOTAL=$ARGOS_PARALLEL_TOTAL ARGOS_PARALLEL_INDEX=$ARGOS_PARALLEL_INDEX"
 
       - name: Install Argos (lenient)
         id: argos_install
         if: ${{ env.ARGOS_TOKEN != '' }}
         continue-on-error: true
-        run: npm install -D --no-save --legacy-peer-deps --no-audit --no-fund @argos-ci/playwright
+        run: npm install -D --no-save --legacy-peer-deps --no-audit --no-fund @argos-ci/playwright argos
 
       - name: Verify Argos reporter is resolvable
         if: ${{ env.ARGOS_TOKEN != '' && steps.argos_install.outcome == 'success' }}
@@ -126,7 +107,17 @@ jobs:
         if: ${{ env.ARGOS_TOKEN == '' || steps.argos_install.outcome != 'success' }}
         run: npx playwright test --reporter=line
 
-      # Quote names with colons to keep YAML happy
+      # Explicit upload so a build always appears in Argos UI
+      - name: Upload snapshots to Argos (CLI)
+        if: ${{ env.ARGOS_TOKEN != '' }}
+        run: |
+          if [ -d ".argos-screenshots" ]; then
+            echo "Found snapshots, uploading via Argos CLI…"
+            npx -y argos upload ./.argos-screenshots
+          else
+            echo "No .argos-screenshots directory found."
+          fi
+
       - name: "Argos debug: list snapshots"
         if: always()
         run: |
