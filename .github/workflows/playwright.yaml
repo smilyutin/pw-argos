@@ -2,9 +2,9 @@ name: Playwright Tests
 
 on:
   push:
-    branches: ["dev*", "main"]   # run on dev* and main pushes
+    branches: ["dev*", "main"]     # run on dev* and main pushes
   pull_request:
-    branches: ["dev*", "main"]   # PRs targeting dev* or main
+    branches: ["dev*", "main"]     # PRs targeting dev* or main
   workflow_dispatch:
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '16'          # Angular build on Node 16
+          node-version: '16'        # Angular build on Node 16
           cache: 'npm'
 
       - name: Install Angular deps
@@ -58,14 +58,14 @@ jobs:
       ARGOS_COMMIT: ${{ github.sha }}
       ARGOS_CI: github-actions
       ARGOS_PARALLEL_TOTAL: "1"
-      ARGOS_PARALLEL_INDEX: "0"
+      ARGOS_PARALLEL_INDEX: "1"     # ← 1-based index (was 0)
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'          # Playwright requires >=18
+          node-version: '20'        # Playwright requires >=18
           cache: 'npm'
 
       - name: Install test deps
@@ -101,6 +101,7 @@ jobs:
           echo "ARGOS_BASE_BRANCH=$ARGOS_BASE_BRANCH"
           echo "ARGOS_COMMIT=$ARGOS_COMMIT"
           echo "ARGOS_CI=$ARGOS_CI"
+          echo "ARGOS_PARALLEL_TOTAL=$ARGOS_PARALLEL_TOTAL ARGOS_PARALLEL_INDEX=$ARGOS_PARALLEL_INDEX"
 
       # Install Argos tooling leniently to avoid legacy peer-dep conflicts
       - name: Install Argos packages (lenient)
@@ -117,16 +118,18 @@ jobs:
         if: ${{ env.ARGOS_TOKEN != '' }}
         run: node -e "console.log(require.resolve('@argos-ci/playwright')); console.log('Argos reporter RESOLVED ✅')"
 
-      # Use Argos reporter when token is present; otherwise default reporter
-      - name: Playwright tests (Argos reporter)
-        if: ${{ env.ARGOS_TOKEN != '' }}
+      # Run tests (your code calls argosScreenshot(...) to create ./.argos-screenshots)
+      - name: Playwright tests
         env:
           DEBUG: "argos:*"
-        run: npx playwright test -c playwright.argos.config.ts --reporter=line
-
-      - name: Playwright tests (no Argos)
-        if: ${{ env.ARGOS_TOKEN == '' }}
         run: npx playwright test --reporter=line
+
+      # Ensure 1-based defaults even if matrix/sharding is added later
+      - name: Normalize Argos parallel env
+        if: ${{ env.ARGOS_TOKEN != '' }}
+        run: |
+          echo "ARGOS_PARALLEL_TOTAL=${ARGOS_PARALLEL_TOTAL:-1}" >> "$GITHUB_ENV"
+          echo "ARGOS_PARALLEL_INDEX=${ARGOS_PARALLEL_INDEX:-1}" >> "$GITHUB_ENV"
 
       # Upload screenshots to Argos (only when token present and dir exists)
       - name: Upload snapshots to Argos
@@ -134,7 +137,12 @@ jobs:
         run: |
           if [ -d ".argos-screenshots" ]; then
             echo "Uploading $(find .argos-screenshots -type f | wc -l) snapshot(s)…"
-            npx @argos-ci/cli upload ./.argos-screenshots
+            npx @argos-ci/cli upload ./.argos-screenshots \
+              --branch "$ARGOS_BRANCH" \
+              --commit "$ARGOS_COMMIT" \
+              --base-branch "$ARGOS_BASE_BRANCH" \
+              --parallel-total "${ARGOS_PARALLEL_TOTAL:-1}" \
+              --parallel-index "${ARGOS_PARALLEL_INDEX:-1}"
           else
             echo "No ./.argos-screenshots directory found — skipping Argos upload."
           fi
