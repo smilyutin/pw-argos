@@ -1,0 +1,51 @@
+# ------------------------
+# Angular / Node
+# ------------------------
+node_modules/
+dist/
+tmp/
+out-tsc/
+.angular/
+.cache/
+coverage/
+
+# Angular environment files (if you use local overrides)
+src/environments/*.local.ts
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ------------------------
+# Playwright
+# ------------------------
+playwright-report/
+test-results/
+blob-report/
+trace.zip
+*.trace.zip
+
+# Playwright artifacts in tests
+screenshots/
+videos/
+
+# ------------------------
+# Misc
+# ------------------------
+.env
+.env.*        # don’t commit secrets

@@ -1,6 +1,6 @@
 // test-options.ts
 import { test as base } from '@playwright/test';
-import { PageManager } from '../pw-example/page-objects/pageManager';
+import { PageManager } from './page-objects/pageManager';
 
 export type TestOptions = {
   globalsQaURL: string;
