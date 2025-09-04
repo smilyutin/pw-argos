@@ -4,7 +4,7 @@ import { test } from '../test-options';
 import { PageManager } from '../page-objects/pageManager';
 import { faker } from '@faker-js/faker';
 //import { argosScreenshot as argosSnap } from './utils/argos';
-import { argosSnap } from './utils/argos';
+import { argosScreenshot } from './utils/argos';
 
 import * as fs from 'fs';
 
@@ -64,7 +64,7 @@ test('parametrized methods', async ({ pageManager, page }) => {
   await page.locator('nb-card', { hasText: /Inline form/i }).screenshot({ path: 'screenshots/inlineForm.png' });
 
   // Use the aliased helper consistently
-  await argosSnap(page, 'Form Layouts - after submit');
+  await argosScreenshot(page, 'Form Layouts - after submit');
 
   await expect(
     page.locator('nb-card', { hasText: /Using the Grid/i }).getByRole('button')
@@ -77,10 +77,10 @@ test('testing with agros ci', async ({ page }) => {
   const pm = new PageManager(page);
 
   await pm.navigateTo().formLayoutsPage();
-  await argosSnap(page, 'forms layout page');
+  await argosScreenshot(page, 'forms layout page');
 
   await pm.navigateTo().datepickerPage();
-  await argosSnap(page, 'date picker page');
+  await argosScreenshot(page, 'date picker page');
 
   // add more steps + argosSnap(...) as needed
 });

@@ -1,8 +1,5 @@
 import {test, expect} from '@playwright/test'
-import { tooltip } from 'leaflet'
-import { using } from 'rxjs'
-import { argosScreenshot } from "@argos-ci/playwright";
-import { argosSnap } from './utils/argos';
+import { argosScreenshot } from './utils/argos';
 
 test.describe.configure({mode: 'parallel'})
 
@@ -39,7 +36,7 @@ test.describe('Form layouts page', () => {
     test(`radio buttons`, async ({page}) => {
             test.slow()
             const usingTheGridForm = page .locator(`nb-card`, {hasText: "Using the Grid"})
-            await argosSnap(page, 'Using the Grid');
+            await argosScreenshot(page, 'Using the Grid');
             await usingTheGridForm.getByLabel(`Option 1`).check({force: true})
             // await usingTheGridForm.getByRole(`radio`, {name: "Option 1"}).check({force: true})
             const radioStatus = await usingTheGridForm.getByRole(`radio`, {name: "Option 1"}).isChecked()
@@ -58,7 +55,7 @@ test.describe('Form layouts page', () => {
 test(`checkboxes`, async ({page}) => {
     await page.getByText(`Modal & Overlays`).click()
     await page.getByText(`Toastr`).click()
-    await argosSnap(page, 'checkboxes');
+    await argosScreenshot(page, 'checkboxes');
     // await page.getByRole(`checkbox`, {name: "Hide on click"}).check({force: true})
     await page.getByRole(`checkbox`, {name: "Hide on click"}).uncheck({force: true})
     await page.getByRole(`checkbox`, {name: "Prevent arising of duplicate toast"}).check({force: true})
@@ -94,7 +91,7 @@ test (`list and dropdowns`, async ({page}) => {
     const header = page.locator(`nb-layout-header`)
     await expect(header).toHaveCSS(`background-color`, `rgb(50, 50, 89)`) //asserting that the header has this background color
    // console.log(`Header background color: ${await header.evaluate(el => el.style.backgroundColor)}`) //printing header background color to console
-    await argosSnap(page, 'Color Picker');
+    await argosScreenshot(page, 'Color Picker');
    const colors = {
         "Light": "rgb(255, 255, 255)",
         "Dark": "rgb(34, 43, 69)",

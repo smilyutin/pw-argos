@@ -1,20 +1,20 @@
-// tests/utils/argos.ts
-type ArgosFn = (page: any, name: string) => Promise<any>;
+// Safe wrapper: becomes a no-op if the package/token is missing.
+import type { Page } from '@playwright/test';
 
-let argosScreenshotImpl: ArgosFn | null = null;
+let realFn: ((page: Page, name: string) => Promise<unknown>) | null = null;
 
 try {
-  // Loaded only when package is installed (CI)
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const mod = require('@argos-ci/playwright');
   if (mod && typeof mod.argosScreenshot === 'function') {
-    argosScreenshotImpl = mod.argosScreenshot as ArgosFn;
+    realFn = mod.argosScreenshot as typeof realFn;
   }
-} catch { /* ignore - not installed locally */ }
+} catch {
+  // package not installed — fine locally
+}
 
-// Call this from tests; safe no-op if not available
-export async function argosSnap(page: any, name: string) {
-  if (!process.env.ARGOS_TOKEN) return;
-  if (!argosScreenshotImpl) return;
-  await argosScreenshotImpl(page, name);
+export async function argosScreenshot(page: Page, name: string) {
+  if (!process.env.ARGOS_TOKEN) return;   // token not present
+  if (!realFn) return;                    // reporter not installed
+  await realFn(page, name);
 }
