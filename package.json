@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "ng serve",
+    "test:argos": "playwright test -c playwright.argos.config.ts",
     "test": "npx playwright test",
     "pw:doctor": "node pw-doc.js",
     "pom:doctor": "node pom-doc.js",
