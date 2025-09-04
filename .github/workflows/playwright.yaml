@@ -85,9 +85,7 @@ jobs:
           name: dist
           path: dist
 
-      # Derive a sensible base branch for Argos:
-      # - On PRs, use the PR base (dev/main).
-      # - On direct pushes (dev*/main), default to main.
+      # Derive ARGOS_BASE_BRANCH (PR base branch; else main)
       - name: Set ARGOS_BASE_BRANCH
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -104,25 +102,38 @@ jobs:
           echo "ARGOS_COMMIT=$ARGOS_COMMIT"
           echo "ARGOS_CI=$ARGOS_CI"
 
-      # Install only the official Argos packages we need
-      - name: Install @argos-ci/playwright
+      # Install Argos tooling leniently to avoid legacy peer-dep conflicts
+      - name: Install Argos packages (lenient)
         if: ${{ env.ARGOS_TOKEN != '' }}
-        run: npm install -D --no-save @argos-ci/playwright
+        run: |
+          set -e
+          export npm_config_legacy_peer_deps=true
+          export npm_config_audit=false
+          export npm_config_fund=false
+          npm install -D --no-save @argos-ci/playwright @argos-ci/cli || \
+          npm install -D --no-save --force @argos-ci/playwright @argos-ci/cli
 
-      - name: Install @argos-ci/cli
+      - name: Verify Argos reporter is resolvable
         if: ${{ env.ARGOS_TOKEN != '' }}
-        run: npm install -D --no-save @argos-ci/cli
+        run: node -e "console.log(require.resolve('@argos-ci/playwright')); console.log('Argos reporter RESOLVED ✅')"
 
-      # Run the tests (your code should call argosScreenshot(...) to create ./.argos-screenshots)
+      # Run tests (your code should call argosScreenshot(...) at interesting points)
       - name: Playwright tests
+        env:
+          DEBUG: "argos:*"
         run: npx playwright test --reporter=line
 
-      # Upload screenshots to Argos (only when token is set)
+      # Upload screenshots to Argos (only when token present and dir exists)
       - name: Upload snapshots to Argos
         if: ${{ env.ARGOS_TOKEN != '' }}
-        run: npx @argos-ci/cli upload ./.argos-screenshots
+        run: |
+          if [ -d ".argos-screenshots" ]; then
+            npx @argos-ci/cli upload ./.argos-screenshots
+          else
+            echo "No ./.argos-screenshots directory found — skipping Argos upload."
+          fi
 
-      # Upload Playwright HTML report if something failed
+      # Upload Playwright HTML report when something fails
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

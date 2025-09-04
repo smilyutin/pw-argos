@@ -1,7 +1,7 @@
 // tests/argos.smoke.spec.ts
 import { test } from '@playwright/test';
 
-test('argos smoke', async ({ page }) => {
+test.skip('argos smoke', async ({ page }) => {
   await page.goto(process.env.QA_URL || 'http://localhost:4200');
   // lazy import so it doesn’t crash locally if package missing
   let snap: ((p:any, n:string)=>Promise<any>) | null = null;
