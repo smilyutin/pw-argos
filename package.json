@@ -89,6 +89,7 @@
     "dotenv": "^17.2.1",
     "eslint": "^8.57.1",
     "npm-run-all": "4.0.2",
+    "playwright": "^1.55.0",
     "rimraf": "2.6.1",
     "stylelint": "^15.6.0",
     "ts-node": "3.2.2",
