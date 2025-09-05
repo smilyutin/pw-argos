@@ -1,6 +1,7 @@
 // playwright.argos.config.ts
-import base from './playwright.config';
+import 'dotenv/config';                 // ⬅️ add this line at the very top
 import { defineConfig, type ReporterDescription } from '@playwright/test';
+import base from './playwright.config';
 
 const reporter: ReporterDescription[] = [
   ['line'],

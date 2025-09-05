@@ -1,20 +1,42 @@
 // tests/utils/argos.ts
-type ArgosFn = (page: any, name: string) => Promise<any>;
+import type { Page } from '@playwright/test';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
-let argosScreenshotImpl: ArgosFn | null = null;
-
+// Try to load the official helper, but don't crash locally if missing.
+let upstream: ((page: Page, name: string) => Promise<unknown>) | null = null;
 try {
-  // Loaded only when package is installed (CI)
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const mod = require('@argos-ci/playwright');
-  if (mod && typeof mod.argosScreenshot === 'function') {
-    argosScreenshotImpl = mod.argosScreenshot as ArgosFn;
-  }
-} catch { /* ignore - not installed locally */ }
+  upstream = require('@argos-ci/playwright').argosScreenshot;
+} catch {
+  upstream = null;
+}
 
-// Call this from tests; safe no-op if not available
-export async function argosSnap(page: any, name: string) {
-  if (!process.env.ARGOS_TOKEN) return;
-  if (!argosScreenshotImpl) return;
-  await argosScreenshotImpl(page, name);
+function slugify(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+/**
+ * Always saves a PNG into ./.argos-screenshots for the CLI upload step.
+ * If @argos-ci/playwright is available and ARGOS_TOKEN is set, also call the
+ * official argosScreenshot to capture extra metadata (harmless if it fails).
+ */
+export async function argosScreenshot(page: Page, name: string) {
+  const outDir = path.resolve('.argos-screenshots');
+  await fs.mkdir(outDir, { recursive: true });
+
+  const file = path.join(outDir, `${slugify(name)}.png`);
+  await page.screenshot({ path: file, fullPage: true });
+
+  if (upstream && process.env.ARGOS_TOKEN) {
+    try {
+      await upstream(page, name);
+    } catch (e) {
+      // Don’t fail the test if the upstream helper has issues — we still have the PNG.
+      console.warn('[argos] upstream argosScreenshot failed:', (e as Error).message);
+    }
+  }
 }
